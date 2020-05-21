@@ -31,4 +31,9 @@ class BattleTimer {
   void toggleStopped() {
     isStopped = !isStopped;
   }
+
+  void toggleTurnPlayer() {
+    turnPlayerName =
+        (turnPlayerName == kPlayer1Name) ? kPlayer2Name : kPlayer2Name;
+  }
 }

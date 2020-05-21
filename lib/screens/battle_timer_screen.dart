@@ -19,6 +19,7 @@ class _BattleTimerState extends State<BattleTimer>
   double percentage = 0.0;
   double newPercentage = 0.0;
   AnimationController percentageAnimationController;
+
   Timer _timer;
   double _interval = 0.0;
 
@@ -27,8 +28,6 @@ class _BattleTimerState extends State<BattleTimer>
     super.initState();
     _initTimer(kStartDefaultTime);
   }
-
-  // Provider系は引数にすればいい？
 
   void _initTimer(int setTime) {
     setState(() {
@@ -47,38 +46,48 @@ class _BattleTimerState extends State<BattleTimer>
   }
 
   void _startTimer() {
-    //BattleTimerData battleTimerData = Provider.of<BattleTimerData>(context);
-    if (!Provider.of<BattleTimerData>(context, listen: false).isStarted) {
+    BattleTimerData battleTimerData =
+        Provider.of<BattleTimerData>(context, listen: false);
+
+    // TEST
+    print('TEST2');
+    print(Provider.of<BattleTimerData>(context, listen: false).turnPlayerName);
+    // TEST
+
+    if (!battleTimerData.isStarted) {
       const oneSec = const Duration(seconds: 1);
       _timer = Timer.periodic(
         oneSec,
         (Timer timer) => setState(
           () {
-            if (!Provider.of<BattleTimerData>(context, listen: false)
-                .isStopped) {
-              if (Provider.of<BattleTimerData>(context, listen: false)
-                      .currentTime <
-                  1) {
+            battleTimerData =
+                Provider.of<BattleTimerData>(context, listen: false);
+
+            // TEST
+            print('TEST3');
+            print(Provider.of<BattleTimerData>(context, listen: false)
+                .turnPlayerName);
+            // TEST
+
+            if (!battleTimerData.isStopped) {
+              // 0 になったとき
+              if (battleTimerData.currentTime < 1) {
                 timer.cancel();
-                //add for Timer = 0
-                _initTimer(Provider.of<BattleTimerData>(context, listen: false)
-                    .defaultTime);
-                Provider.of<BattleTimerData>(context, listen: false).timeOver();
-                _startTimer();
-                if (Provider.of<BattleTimerData>(context, listen: false)
-                        .turnPlayerName ==
-                    kPlayer1Name) {
-                  Provider.of<BattleTimerData>(context, listen: false)
-                      .missPlayer1();
+                battleTimerData.resetBattleTimer();
+
+                _resetCurrentTime();
+                battleTimerData.timeOver();
+
+                if (battleTimerData.turnPlayerName == kPlayer1Name) {
+                  battleTimerData.missPlayer1();
                 } else {
-                  Provider.of<BattleTimerData>(context, listen: false)
-                      .missPlayer2();
+                  battleTimerData.missPlayer2();
                 }
-                Provider.of<BattleTimerData>(context, listen: false)
-                    .changePlayer();
+                battleTimerData.changePlayer();
+                _startTimer();
+                // 以下は通常処理
               } else {
-                Provider.of<BattleTimerData>(context, listen: false)
-                    .decrementTime1s();
+                battleTimerData.decrementTime1s();
                 percentage = newPercentage;
                 newPercentage += _interval;
                 if (newPercentage > 100.0) {
@@ -92,43 +101,40 @@ class _BattleTimerState extends State<BattleTimer>
         ),
       );
     }
-    Provider.of<BattleTimerData>(context, listen: false).startTimer();
+    battleTimerData.startTimer();
+    // TEST
+    print('TESTTES');
+    print(Provider.of<BattleTimerData>(context, listen: false).turnPlayerName);
+    // TEST
   }
 
   void _changePlayer() {
-    _initTimer(
-        Provider.of<BattleTimerData>(context, listen: false).defaultTime);
+    Provider.of<BattleTimerData>(context, listen: false).changePlayer();
+    Vibration.vibrate(duration: 100);
+    _resetCurrentTime();
     _startTimer();
   }
 
-  void _incrementTimer_1S() {
+  void _changeTimerS(int i) {
     setState(() {
       Provider.of<BattleTimerData>(context, listen: false)
-          .updateDefaultTimer(1);
-      _initTimer(
-          Provider.of<BattleTimerData>(context, listen: false).defaultTime);
-
-      print(
-          '${Provider.of<BattleTimerData>(context, listen: false).defaultTime}');
+          .changeDefaultTimer(i);
+      _resetCurrentTime();
     });
   }
 
-  void _decrementTimer_1S() {
-    setState(() {
-      Provider.of<BattleTimerData>(context, listen: false)
-          .updateDefaultTimer(-1);
-      _initTimer(
-          Provider.of<BattleTimerData>(context, listen: false).defaultTime);
-    });
+  // currentTimeをリセット
+  void _resetCurrentTime() {
+    Provider.of<BattleTimerData>(context, listen: false).restartBattleTimer();
+    _initTimer(
+        Provider.of<BattleTimerData>(context, listen: false).defaultTime);
   }
 
   void _resetTimer() {
     setState(() {
       _timer.cancel();
       Provider.of<BattleTimerData>(context, listen: false).resetBattleTimer();
-
-      _initTimer(
-          Provider.of<BattleTimerData>(context, listen: false).defaultTime);
+      _resetCurrentTime();
     });
   }
 
@@ -140,6 +146,11 @@ class _BattleTimerState extends State<BattleTimer>
 
   @override
   Widget build(BuildContext context) {
+    // TEST
+    print('TEST1');
+    print(Provider.of<BattleTimerData>(context, listen: false).turnPlayerName);
+    // TEST
+
     // BattleTimerData battleTimerData = Provider.of<BattleTimerData>(context, listen: false);
 
     return Scaffold(
@@ -197,20 +208,16 @@ class _BattleTimerState extends State<BattleTimer>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: <Widget>[
                         RaisedButton(
-                          child: Text("-1S"),
+                          child: Text('-1S'),
                           // 【変数】
-                          onPressed: _decrementTimer_1S,
+                          onPressed: () => _changeTimerS(-1),
                         ),
                         const SizedBox(width: 10.0),
                         RaisedButton(
-                          child: Text("+1S"),
+                          child: Text('+1S'),
                           // 【変数】
-                          onPressed: _incrementTimer_1S,
-                        ),
-                        RaisedButton(
-                          child: Text("TESTTEST"),
                           onPressed: () {
-                            Vibration.vibrate(duration: 500);
+                            _changeTimerS(1);
                           },
                         ),
                       ],
