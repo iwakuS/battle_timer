@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+const String kPlayer1Name = 'Player1';
+const String kPlayer2Name = 'Player2';
+
 const int kStartDefaultTime = 3;
 
 const Color kPlayer1Color = Colors.redAccent;

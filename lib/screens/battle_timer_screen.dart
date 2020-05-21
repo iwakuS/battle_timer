@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:battletimer/models/battle_timer_data.dart';
 import 'package:battletimer/modules/timer_painter.dart';
 import 'package:battletimer/utilities/constants.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:vibration/vibration.dart';
 
 class BattleTimer extends StatefulWidget {
@@ -13,47 +15,26 @@ class BattleTimer extends StatefulWidget {
 
 class _BattleTimerState extends State<BattleTimer>
     with TickerProviderStateMixin {
-  // Setting Time(sec)
-  int _startDefault = kStartDefaultTime;
-  int _currentTime;
-
-  // Setting Player data
-  int _missNumberPlayer1;
-  int _missNumberPlayer2;
-
-  var _colorBar = <Color>[
-    kPlayer1Color,
-    kPlayer2Color,
-  ];
-  int _colorPlayerNumber = 0;
-
   // Setting Timer
   double percentage = 0.0;
   double newPercentage = 0.0;
   AnimationController percentageAnimationController;
   Timer _timer;
   double _interval = 0.0;
-  String _time = '';
-
-  // Setting tool
-  bool _isStarted = false;
-  bool _isStopped = false;
 
   @override
   void initState() {
     super.initState();
-    _initTimer();
-    _missNumberPlayer1 = 0;
-    _missNumberPlayer2 = 0;
+    _initTimer(kStartDefaultTime);
   }
 
-  void _initTimer() {
-    _currentTime = _startDefault;
+  // Provider系は引数にすればいい？
+
+  void _initTimer(int setTime) {
     setState(() {
       percentage = 0.0;
       newPercentage = 0.0;
-      _interval = 100 / _currentTime;
-      _onTimer(_currentTime);
+      _interval = 100 / setTime;
     });
     percentageAnimationController =
         AnimationController(vsync: this, duration: Duration(milliseconds: 1000))
@@ -65,41 +46,39 @@ class _BattleTimerState extends State<BattleTimer>
           });
   }
 
-  void _onTimer(int timer) {
-    if (timer > 60) {
-      _time = (timer ~/ 60).toString() + "M" + (timer % 60).toString() + "S";
-    } else {
-      _time = timer.toString() + "S";
-    }
-    if (!_isStarted) {
-      _time = _time + "\nPUSH";
-    }
-  }
-
   void _startTimer() {
-    if (!_isStarted) {
+    //BattleTimerData battleTimerData = Provider.of<BattleTimerData>(context);
+    if (!Provider.of<BattleTimerData>(context, listen: false).isStarted) {
       const oneSec = const Duration(seconds: 1);
       _timer = Timer.periodic(
         oneSec,
         (Timer timer) => setState(
           () {
-            if (!_isStopped) {
-              if (_currentTime < 1) {
+            if (!Provider.of<BattleTimerData>(context, listen: false)
+                .isStopped) {
+              if (Provider.of<BattleTimerData>(context, listen: false)
+                      .currentTime <
+                  1) {
                 timer.cancel();
                 //add for Timer = 0
-                _initTimer();
-                _isStarted = false;
+                _initTimer(Provider.of<BattleTimerData>(context, listen: false)
+                    .defaultTime);
+                Provider.of<BattleTimerData>(context, listen: false).timeOver();
                 _startTimer();
-                if (_colorPlayerNumber < 1) {
-                  _colorPlayerNumber += 1;
-                  _missNumberPlayer1 += 1;
+                if (Provider.of<BattleTimerData>(context, listen: false)
+                        .turnPlayerName ==
+                    kPlayer1Name) {
+                  Provider.of<BattleTimerData>(context, listen: false)
+                      .missPlayer1();
                 } else {
-                  _colorPlayerNumber = 0;
-                  _missNumberPlayer2 += 1;
+                  Provider.of<BattleTimerData>(context, listen: false)
+                      .missPlayer2();
                 }
+                Provider.of<BattleTimerData>(context, listen: false)
+                    .changePlayer();
               } else {
-                _currentTime = _currentTime - 1;
-                _onTimer(_currentTime);
+                Provider.of<BattleTimerData>(context, listen: false)
+                    .decrementTime1s();
                 percentage = newPercentage;
                 newPercentage += _interval;
                 if (newPercentage > 100.0) {
@@ -113,133 +92,155 @@ class _BattleTimerState extends State<BattleTimer>
         ),
       );
     }
-    _isStarted = true;
+    Provider.of<BattleTimerData>(context, listen: false).startTimer();
   }
 
   void _changePlayer() {
-    _initTimer();
+    _initTimer(
+        Provider.of<BattleTimerData>(context, listen: false).defaultTime);
     _startTimer();
-    if (_colorPlayerNumber < 1) {
-      _colorPlayerNumber += 1;
-    } else {
-      _colorPlayerNumber = 0;
-    }
   }
 
   void _incrementTimer_1S() {
     setState(() {
-      _startDefault += 1;
-      _initTimer();
+      Provider.of<BattleTimerData>(context, listen: false)
+          .updateDefaultTimer(1);
+      _initTimer(
+          Provider.of<BattleTimerData>(context, listen: false).defaultTime);
+
+      print(
+          '${Provider.of<BattleTimerData>(context, listen: false).defaultTime}');
     });
   }
 
   void _decrementTimer_1S() {
     setState(() {
-      _startDefault -= 1;
-      _initTimer();
+      Provider.of<BattleTimerData>(context, listen: false)
+          .updateDefaultTimer(-1);
+      _initTimer(
+          Provider.of<BattleTimerData>(context, listen: false).defaultTime);
     });
   }
 
   void _resetTimer() {
     setState(() {
       _timer.cancel();
-      _isStarted = false;
-      _missNumberPlayer1 = 0;
-      _missNumberPlayer2 = 0;
-      _initTimer();
-      _colorPlayerNumber = 0;
+      Provider.of<BattleTimerData>(context, listen: false).resetBattleTimer();
+
+      _initTimer(
+          Provider.of<BattleTimerData>(context, listen: false).defaultTime);
     });
   }
 
   void _stopTimer() {
     setState(() {
-      _isStopped = !_isStopped;
+      Provider.of<BattleTimerData>(context, listen: false).stopButton();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    int _turnPlayer = _colorPlayerNumber + 1;
+    // BattleTimerData battleTimerData = Provider.of<BattleTimerData>(context, listen: false);
+
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: FittedBox(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-                Text(
-                  "Player$_turnPlayer",
-                  style: kPlayerNameTextStyle,
-                ),
-                const SizedBox(height: 40.0),
-                Container(
-                  height: 280.0,
-                  width: 280.0,
-                  child: CustomPaint(
-                    foregroundPainter: TimerPainter(
-                        lineColor: _colorBar[_colorPlayerNumber],
-                        completeColor: Colors.grey,
-                        completePercent: percentage,
-                        width: 65.0),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: RaisedButton(
-                        color: Colors.white,
-                        textColor: Colors.black,
-                        splashColor: Colors.tealAccent,
-                        shape: CircleBorder(),
-                        child: Text(
-                          "$_time",
-                          style: kCurrentTimeTextStyle,
-                          textAlign: TextAlign.center,
+            child: Consumer<BattleTimerData>(
+              builder: (context, battleTimerData, child) {
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: <Widget>[
+                    // 【変数】
+                    Text(
+                      '${battleTimerData.turnPlayerName}',
+                      style: kPlayerNameTextStyle,
+                    ),
+                    const SizedBox(height: 40.0),
+                    Container(
+                      height: 280.0,
+                      width: 280.0,
+                      child: CustomPaint(
+                        foregroundPainter: TimerPainter(
+                          // 【変数】
+                          lineColor:
+                              (battleTimerData.turnPlayerName == kPlayer1Name)
+                                  ? Colors.red[500]
+                                  : Colors.lightBlue,
+                          completeColor: Colors.grey,
+                          completePercent: percentage,
+                          width: 65.0,
                         ),
-                        onPressed: () =>
-                            _isStarted ? _changePlayer() : _startTimer(),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: RaisedButton(
+                            color: Colors.white,
+                            textColor: Colors.black,
+                            splashColor: Colors.tealAccent,
+                            shape: CircleBorder(),
+                            child: Text(
+                              // 【変数】
+                              "${battleTimerData.currentTime}",
+                              style: kCurrentTimeTextStyle,
+                              textAlign: TextAlign.center,
+                            ),
+                            // 【変数】
+                            onPressed: () => battleTimerData.isStarted
+                                ? _changePlayer()
+                                : _startTimer(),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 40.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    RaisedButton(
-                      child: Text("-1S"),
-                      onPressed: _decrementTimer_1S,
+                    const SizedBox(height: 40.0),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        RaisedButton(
+                          child: Text("-1S"),
+                          // 【変数】
+                          onPressed: _decrementTimer_1S,
+                        ),
+                        const SizedBox(width: 10.0),
+                        RaisedButton(
+                          child: Text("+1S"),
+                          // 【変数】
+                          onPressed: _incrementTimer_1S,
+                        ),
+                        RaisedButton(
+                          child: Text("TESTTEST"),
+                          onPressed: () {
+                            Vibration.vibrate(duration: 500);
+                          },
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10.0),
-                    RaisedButton(
-                      child: Text("+1S"),
-                      onPressed: _incrementTimer_1S,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        RaisedButton(
+                          child: Text("Reset"),
+                          // 【変数】
+                          onPressed: _resetTimer,
+                        ),
+                        const SizedBox(width: 10.0),
+                        RaisedButton(
+                          child: Text("Stop/Re"),
+                          // 【変数】
+                          onPressed: _stopTimer,
+                        ),
+                      ],
                     ),
-                    RaisedButton(
-                      child: Text("TESTTEST"),
-                      onPressed: () {
-                        Vibration.vibrate(duration: 500);
-                      },
-                    ),
+                    const SizedBox(height: 30.0),
+                    // 【変数】
+                    Text('Player1 ✖: ${battleTimerData.missNumberPlayer1}',
+                        style: TextStyle(fontSize: 30)),
+                    // 【変数】
+                    Text('Player2 ✖: ${battleTimerData.missNumberPlayer2}',
+                        style: TextStyle(fontSize: 30)),
                   ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    RaisedButton(
-                      child: Text("Reset"),
-                      onPressed: _resetTimer,
-                    ),
-                    const SizedBox(width: 10.0),
-                    RaisedButton(
-                      child: Text("Stop/Re"),
-                      onPressed: _stopTimer,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 30.0),
-                Text("Player1 X: $_missNumberPlayer1",
-                    style: TextStyle(fontSize: 30)),
-                Text("Player2 X: $_missNumberPlayer2",
-                    style: TextStyle(fontSize: 30)),
-              ],
+                );
+              },
             ),
           ),
         ),
